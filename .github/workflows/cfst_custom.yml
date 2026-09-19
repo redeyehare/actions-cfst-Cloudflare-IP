@@ -1,0 +1,62 @@
+name: Collect Best IPs (Custom Filter & Split)
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 */6 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cfst-custom-generate
+  cancel-in-progress: true
+
+env:
+  BEST_SUB_SOURCES: 'Cm.Soso.Edu.Kg,Sub.Cmliussss.Net,Owo.O00o.Ooo'
+  BEST_SUB_TOP: '120'
+  IPS_PER_FILE: '30' # 每个文件保存的 IP 数量（默认 30，可直接在此修改）
+
+jobs:
+  generate:
+    name: Generate ADD.txt
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect IPs from subscription sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          python3 scripts/cfst_to_add_custom.py \
+            --sources "${BEST_SUB_SOURCES}" \
+            --output output/ADD.txt \
+            --merged-output output/result.csv \
+            --top "${BEST_SUB_TOP}" \
+            --per-file "${IPS_PER_FILE}"
+
+      - name: Inspect generated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '===== Generated output files ====='
+          ls -lh output/ADD*.txt || true
+
+      - name: Commit output
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add output/result.csv output/ADD*.txt
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+          else
+            git commit -m 'chore: update custom Cloudflare best IPs [skip ci]'
+            git push
+          fi
+
+
